@@ -14,6 +14,7 @@ export default function SidebarWrapper() {
     { href: "/rag",       label: "📚 RAG検索" },
     { href: "/web",       label: "🌐 Web収集" },
     { href: "/collect",   label: "📥 データ収集" },
+    { href: "/projects",  label: "📋 工程管理" },
   ];
 
   return (
