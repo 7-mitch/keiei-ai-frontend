@@ -142,8 +142,8 @@ export const alertApi = {
 };
 
 export const chatApi = {
-  send: async (question: string): Promise<ChatResponse> => {
-    const res = await api.post("/api/chat", { question });
+  send: async (question: string, thinking: boolean = false): Promise<ChatResponse> => {
+    const res = await api.post("/api/chat", { question, thinking });
     return res.data;
   },
 };
