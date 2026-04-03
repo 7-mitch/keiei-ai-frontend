@@ -49,6 +49,8 @@ export interface FraudAlert {
 
 export interface ChatResponse {
   answer:     string;
+  result:      string;
+  response:   string;
   route:      string;
   session_id: string;
 }

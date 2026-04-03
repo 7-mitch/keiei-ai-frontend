@@ -91,7 +91,7 @@ export default function HrPage() {
     setResult("");
     try {
       const res = await chatApi.send(q);
-      setResult(res.result || res.response || "回答を取得できませんでした。");
+      setResult(res.result || "回答を取得できませんでした。");
     } catch {
       setResult("エラーが発生しました。再度お試しください。");
     } finally {

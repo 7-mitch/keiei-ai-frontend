@@ -44,7 +44,7 @@ const INITIAL_APTITUDE: Record<string, number> = {
   継続力:         3,
   協調性:         3,
   分析力:         3,
-  リーダーシップ: 3,
+  リーダーシップ:  3,
   共感力:         3,
   計画性:         3,
 };

@@ -1,0 +1,25 @@
+{
+    "events": [
+        {
+            "timestamp": 1774165600341,
+            "message": "INFO:     Started server process [1]",
+            "ingestionTime": 1774165601468
+        },
+        {
+            "timestamp": 1774165600341,
+            "message": "INFO:     Waiting for application startup.",
+            "ingestionTime": 1774165601468
+        },
+        {
+            "timestamp": 1774165601281,
+            "message": "INFO:     Application startup complete.",
+            "ingestionTime": 1774165601468
+        },
+        {
+            "timestamp": 1774165601282,
+            "message": "INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)",
+            "ingestionTime": 1774165601468
+        },
+        {
+            "timestamp": 1774165962755,
+            "message": 
