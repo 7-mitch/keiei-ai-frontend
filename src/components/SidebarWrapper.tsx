@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -50,17 +51,32 @@ function NavIcon({ path }: { path: string }) {
   );
 }
 
-export default function SidebarWrapper() {
-  const pathname = usePathname();
-  if (pathname === "/login") return null;
-
+function SidebarContent({
+  pathname,
+  onClose,
+}: {
+  pathname: string;
+  onClose?: () => void;
+}) {
   return (
-    <aside className="w-60 min-h-screen bg-gray-950 text-gray-300 flex flex-col border-r border-gray-800">
-      <div className="px-5 py-5 border-b border-gray-800">
-        <h1 className="text-base font-semibold text-white tracking-tight">
-          KEIEI-AI
-        </h1>
-        <p className="text-xs text-gray-500 mt-0.5">経営者支援AIシステム</p>
+    <aside className="w-60 h-full bg-gray-950 text-gray-300 flex flex-col border-r border-gray-800">
+      <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-between">
+        <div>
+          <h1 className="text-base font-semibold text-white tracking-tight">
+            KEIEI-AI
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">経営者支援AIシステム</p>
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-white md:hidden"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
@@ -76,6 +92,7 @@ export default function SidebarWrapper() {
                   <Link
                     key={link.href}
                     href={link.href}
+                    onClick={onClose}
                     className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors ${
                       isActive
                         ? "bg-gray-800 text-white font-medium"
@@ -96,5 +113,45 @@ export default function SidebarWrapper() {
         <p className="text-xs text-gray-600">v2.0.0</p>
       </div>
     </aside>
+  );
+}
+
+export default function SidebarWrapper() {
+  const pathname        = usePathname();
+  const [open, setOpen] = useState(false);
+
+  if (pathname === "/login") return null;
+
+  return (
+    <>
+      {/* PC：常に表示 */}
+      <div className="hidden md:flex h-screen sticky top-0">
+        <SidebarContent pathname={pathname} />
+      </div>
+
+      {/* スマートフォン：ハンバーガーボタン */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center h-12 px-4 bg-gray-950 border-b border-gray-800">
+        <button
+          onClick={() => setOpen(true)}
+          className="text-gray-400 hover:text-white"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <span className="ml-3 text-white text-sm font-semibold">KEIEI-AI</span>
+      </div>
+
+      {/* スマートフォン：オーバーレイ */}
+      {open && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          <SidebarContent pathname={pathname} onClose={() => setOpen(false)} />
+          <div
+            className="flex-1 bg-black bg-opacity-50"
+            onClick={() => setOpen(false)}
+          />
+        </div>
+      )}
+    </>
   );
 }
