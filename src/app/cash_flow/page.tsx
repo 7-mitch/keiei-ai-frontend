@@ -3,87 +3,30 @@ import { useState } from "react";
 import { chatApi } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer,
+} from "recharts";
 
-function AptitudeInput({
-  trait,
-  score,
-  onChange,
-}: {
-  trait: string;
-  score: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm w-28 text-muted-foreground">{trait}</span>
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <button
-            key={i}
-            onClick={() => onChange(i)}
-            className={`w-7 h-7 rounded-sm text-xs font-medium transition-colors ${
-              i <= score
-                ? "bg-blue-500 text-white"
-                : "bg-gray-100 text-gray-400 hover:bg-blue-100"
-            }`}
-          >
-            {i}
-          </button>
-        ))}
-      </div>
-      <span className="text-sm font-medium text-muted-foreground">{score}/5</span>
-    </div>
-  );
-}
+const SAMPLE_MONTHLY = [
+  { month: "1月", income: 0, expense: 0, net: 0 },
+  { month: "2月", income: 0, expense: 0, net: 0 },
+  { month: "3月", income: 0, expense: 0, net: 0 },
+];
 
-const INITIAL_APTITUDE: Record<string, number> = {
-  独創性:         3,
-  俊敏性:         3,
-  現実思考:       3,
-  自己信頼:       3,
-  継続力:         3,
-  協調性:         3,
-  分析力:         3,
-  リーダーシップ:  3,
-  共感力:         3,
-  計画性:         3,
-};
+const QUICK_QUESTIONS = [
+  "今月の資金繰り状況を分析してください",
+  "30日後の資金予測とリスクを教えてください",
+  "資金ショートを防ぐための改善策を提案してください",
+  "インボイス制度の経過措置変更で注意すべき点を教えてください",
+  "月次決算を早期化するための具体的な手順を教えてください",
+  "キャッシュフロー改善に効果的な施策を3つ提案してください",
+];
 
-type TabType = "advice" | "learning" | "matching" | "eval";
-
-const TAB_LABELS: Record<TabType, string> = {
-  advice:   "強みアドバイス",
-  learning: "学習パス",
-  matching: "役割提案",
-  eval:     "評価コメント",
-};
-
-export default function HrPage() {
-  const [aptitude,  setAptitude]  = useState(INITIAL_APTITUDE);
-  const [question,  setQuestion]  = useState("");
-  const [result,    setResult]    = useState("");
-  const [loading,   setLoading]   = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>("advice");
-  const [goal,      setGoal]      = useState("");
-
-  const updateScore = (trait: string, value: number) => {
-    setAptitude((prev) => ({ ...prev, [trait]: value }));
-  };
-
-  const topTraits = Object.entries(aptitude)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-
-  const aptitudeText = Object.entries(aptitude)
-    .map(([k, v]) => `${k}: ${v}/5`)
-    .join("、");
-
-  const QUICK_QUESTIONS: Record<TabType, string> = {
-    advice:   `以下の適性診断結果を持つ人材が最大限活躍できる業務アドバイスを3つ提案してください。\n\n【適性診断結果】\n${aptitudeText}`,
-    learning: `以下の適性診断結果と目標を踏まえ、強みを活かした3ヶ月の学習パスを提案してください。\n\n【適性診断結果】\n${aptitudeText}\n\n【目標】\n${goal || "（目標を入力してください）"}`,
-    matching: `以下の適性診断結果を持つ人材に最適なプロジェクト役割と、チーム内での強みの活かし方を提案してください。\n\n【適性診断結果】\n${aptitudeText}`,
-    eval:     `以下の適性診断結果を踏まえ、人事評価コメントのテンプレートを生成してください。\n成果・強み・改善点・来期への期待の4セクションで出力してください。\n\n【適性診断結果】\n${aptitudeText}`,
-  };
+export default function CashFlowPage() {
+  const [question, setQuestion] = useState("");
+  const [result,   setResult]   = useState("");
+  const [loading,  setLoading]  = useState(false);
 
   const handleAsk = async (q: string) => {
     if (!q.trim()) return;
@@ -91,7 +34,7 @@ export default function HrPage() {
     setResult("");
     try {
       const res = await chatApi.send(q);
-      setResult(res.result || res.response || "回答を取得できませんでした。");
+      setResult(res.answer || res.result || res.response || "回答を取得できませんでした。");
     } catch {
       setResult("エラーが発生しました。再度お試しください。");
     } finally {
@@ -103,139 +46,121 @@ export default function HrPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">人事・適性診断</h1>
+          <h1 className="text-3xl font-bold">資金繰り監視</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            適性スコアを入力してAIによる分析・アドバイスを生成します
+            キャッシュフローの自動集計・予測・アラート管理
           </p>
         </div>
         <Badge variant="outline">{new Date().toLocaleDateString("ja-JP")}</Badge>
       </div>
 
-      {/* 強みTOP3 */}
-      <div className="grid grid-cols-3 gap-4">
-        {topTraits.map(([trait, score], i) => (
-          <Card key={trait}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "現在残高",          value: "—", sub: "DBから取得",    color: "text-blue-600"  },
+          { label: "30日後予測",        value: "—", sub: "過去3ヶ月平均", color: "text-green-600" },
+          { label: "月次純利益（平均）", value: "—", sub: "直近3ヶ月",    color: ""              },
+          { label: "リスク判定",        value: "—", sub: "自動算出",      color: "text-gray-400"  },
+        ].map((item) => (
+          <Card key={item.label}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground">
-                {i === 0 ? "最大の強み" : i === 1 ? "強み 2位" : "強み 3位"}
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {item.label}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold text-blue-600">{trait}</div>
-              <div className="flex gap-0.5 mt-1">
-                {[1,2,3,4,5].map((n) => (
-                  <div
-                    key={n}
-                    className={`w-4 h-2 rounded-sm ${
-                      n <= score ? "bg-blue-500" : "bg-gray-200"
-                    }`}
-                  />
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{score}/5点</p>
+              <div className={`text-2xl font-bold ${item.color}`}>{item.value}</div>
+              <p className="text-xs text-muted-foreground mt-1">{item.sub}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* 適性スコア入力 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>適性スコア入力</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              各項目を1〜5で評価してください
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {Object.entries(aptitude).map(([trait, score]) => (
-              <AptitudeInput
-                key={trait}
-                trait={trait}
-                score={score}
-                onChange={(v) => updateScore(trait, v)}
-              />
-            ))}
-            <button
-              onClick={() => setAptitude(INITIAL_APTITUDE)}
-              className="mt-2 text-xs text-muted-foreground hover:text-gray-600 underline"
-            >
-              リセット
-            </button>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>月次収支推移</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            取引データが蓄積されると自動でグラフに反映されます
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={SAMPLE_MONTHLY}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis tickFormatter={(v) => `¥${(v / 1000000).toFixed(1)}M`} />
+              <Tooltip formatter={(v) => [`¥${Number(v).toLocaleString()}`, ""]} />
+              <Area type="monotone" dataKey="income"  stroke="#2563eb" fill="#dbeafe" name="収入" />
+              <Area type="monotone" dataKey="expense" stroke="#ef4444" fill="#fee2e2" name="支出" />
+              <Area type="monotone" dataKey="net"     stroke="#16a34a" fill="#dcfce7" name="純利益" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
-        {/* AIアドバイス */}
-        <Card>
-          <CardHeader>
-            <CardTitle>AI分析・アドバイス</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-1">
-              {(Object.keys(TAB_LABELS) as TabType[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-2 py-1.5 text-xs rounded-md border transition-colors ${
-                    activeTab === tab
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "text-muted-foreground border-gray-200 hover:bg-gray-50"
-                  }`}
-                >
-                  {TAB_LABELS[tab]}
-                </button>
-              ))}
+      <Card>
+        <CardHeader>
+          <CardTitle>自動アラート</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="p-3 rounded-md text-sm border-l-4 bg-blue-50 border-blue-400 text-blue-700">
+              2026年インボイス制度：経過措置の控除割合が縮小されています。仕入税額控除の確認を推奨します。
             </div>
+            <div className="p-3 rounded-md text-sm border-l-4 bg-green-50 border-green-400 text-green-700">
+              資金繰りは現在安定しています。取引データが蓄積されると精度が上がります。
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-            {activeTab === "learning" && (
-              <input
-                type="text"
-                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="目標を入力（例：マネージャーに昇進したい）"
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-              />
-            )}
+      <Card>
+        <CardHeader>
+          <CardTitle>AI資金繰りアドバイス</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            {QUICK_QUESTIONS.map((q) => (
+              <button
+                key={q}
+                onClick={() => handleAsk(q)}
+                disabled={loading}
+                className="p-2 text-xs text-left border rounded-md hover:bg-blue-50 hover:border-blue-300 disabled:opacity-50 transition-colors"
+              >
+                {q}
+              </button>
+            ))}
+          </div>
 
-            <textarea
-              className="w-full p-3 border rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-              rows={2}
-              placeholder="カスタム質問を入力（任意）"
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="資金繰りについて質問してください..."
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAsk(question)}
             />
+            <button
+              onClick={() => handleAsk(question)}
+              disabled={loading || !question.trim()}
+              className="px-4 py-2 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600 disabled:opacity-50"
+            >
+              {loading ? "分析中..." : "分析"}
+            </button>
+          </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleAsk(QUICK_QUESTIONS[activeTab])}
-                disabled={loading}
-                className="flex-1 py-2 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600 disabled:opacity-50"
-              >
-                {loading ? "生成中..." : `${TAB_LABELS[activeTab]}を生成`}
-              </button>
-              <button
-                onClick={() => handleAsk(question)}
-                disabled={loading || !question.trim()}
-                className="flex-1 py-2 border text-sm rounded-md hover:bg-gray-50 disabled:opacity-50"
-              >
-                カスタム質問
-              </button>
+          {loading && (
+            <div className="p-4 bg-gray-50 rounded-md text-sm text-muted-foreground animate-pulse">
+              AI が分析中です...
             </div>
-
-            {loading && (
-              <div className="p-4 bg-gray-50 rounded-md text-sm text-muted-foreground animate-pulse">
-                AI が分析中です...
-              </div>
-            )}
-
-            {result && !loading && (
-              <div className="p-4 bg-blue-50 border border-blue-100 rounded-md text-sm whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
-                {result}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          )}
+          {result && !loading && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-md text-sm whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
+              {result}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
