@@ -20,7 +20,7 @@ export default function RootLayout({
       <body className={geist.className}>
         <div className="flex min-h-screen">
           <SidebarWrapper />
-          <main className="flex-1 bg-background overflow-auto">
+          <main className="flex-1 bg-background overflow-auto md:pt-0 pt-12">
             {children}
           </main>
         </div>

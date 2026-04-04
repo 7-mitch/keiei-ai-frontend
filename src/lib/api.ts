@@ -48,11 +48,12 @@ export interface FraudAlert {
 }
 
 export interface ChatResponse {
-  answer:     string;
-  result:      string;
-  response:   string;
-  route:      string;
-  session_id: string;
+  answer:       string;
+  result:       string;
+  response:     string;
+  route:        string;
+  session_id:   string;
+  graph_base64: string | null;
 }
 
 export interface RagResponse {
