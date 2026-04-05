@@ -20,6 +20,7 @@ api.interceptors.request.use((config) => {
 });
 
 // ===== 型定義 =====
+
 export interface KpiData {
   total_balance: number;
   tx_count:      number;
@@ -54,6 +55,7 @@ export interface ChatResponse {
   route:        string;
   session_id:   string;
   graph_base64: string | null;
+  graph_json:   string | null;
 }
 
 export interface RagResponse {
@@ -103,6 +105,7 @@ export interface FraudManualRequest {
 }
 
 // ===== API関数 =====
+
 export const authApi = {
   login: async (email: string, password: string) => {
     const res = await api.post("/api/auth/login", { email, password });
@@ -143,8 +146,16 @@ export const alertApi = {
 };
 
 export const chatApi = {
-  send: async (question: string, thinking: boolean = false): Promise<ChatResponse> => {
-    const res = await api.post("/api/chat", { question, thinking });
+  send: async (
+    question:    string,
+    thinking:    boolean = false,
+    mode:        string  = "standard",
+    temperature: number  = 0.7,
+    top_p:       number  = 0.9,
+    provider:    string  = "production",
+    model_key:   string  = "sonnet",
+  ): Promise<ChatResponse> => {
+    const res = await api.post("/api/chat", { question, thinking, mode, temperature, top_p, provider, model_key });
     return res.data;
   },
 };
