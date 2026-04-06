@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 import { useState, useRef, useEffect } from "react";
 import { chatApi, ChatResponse, api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 
@@ -110,6 +110,7 @@ export default function ChatPage() {
   const [file,         setFile]         = useState<File | null>(null);
   const [listening,    setListening]    = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showControls, setShowControls] = useState(false);
   const [modeId,       setModeId]       = useState("standard");
   const [temperature,  setTemperature]  = useState(0.7);
   const [topP,         setTopP]         = useState(0.9);
@@ -242,112 +243,113 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 64px)" }}>
-      <div className="px-6 pt-6 pb-2 shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="text-3xl font-bold">AIアシスタント</h1>
-        </div>
-
-        {/* プロバイダー選択 */}
-        <div className="flex gap-2 flex-wrap mb-2">
-          {PROVIDERS.map((provider) => (
-            <button
-              key={provider.id}
-              onClick={() => handleProviderChange(provider.id)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                providerId === provider.id
-                  ? `${provider.color} text-white shadow-md`
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >{provider.label}</button>
-          ))}
-        </div>
-
-        {/* モデル選択 */}
-        <div className="flex gap-2 flex-wrap mb-2 items-center">
-          <span className="text-xs text-gray-500">モデル：</span>
-          {currentProvider.models.map((model) => (
-            <button
-              key={model.key}
-              onClick={() => setModelKey(model.key)}
-              className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
-                modelKey === model.key
-                  ? `${currentProvider.color} text-white shadow-sm`
-                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-              }`}
-              title={model.description}
-            >{model.label} <span className="opacity-70">({model.description})</span></button>
-          ))}
-        </div>
-
-        {/* モード選択 */}
-        <div className="flex gap-2 flex-wrap mb-2">
-          {MODES.map((mode) => (
-            <button
-              key={mode.id}
-              onClick={() => handleModeChange(mode.id)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                modeId === mode.id
-                  ? `${mode.color} text-white shadow-md`
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >{mode.label}</button>
-          ))}
-        </div>
-
-        <p className="text-xs text-muted-foreground mb-2">
-          {currentProvider.label} / {currentModel.label} · {currentMode.description}
-        </p>
-
-        {/* 詳細設定 */}
-        <div className="border rounded-lg overflow-hidden">
+      <div className="px-6 pt-3 pb-2 shrink-0">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold">AIアシスタント</h1>
+            <span className="text-xs text-gray-500">
+              {currentProvider.label} / {currentModel.label} · {currentMode.label}
+            </span>
+          </div>
           <button
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="w-full px-4 py-2 text-xs text-gray-500 flex items-center justify-between hover:bg-gray-50"
+            onClick={() => setShowControls(!showControls)}
+            className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border"
           >
-            <span>詳細設定（temperature / top_p）</span>
-            <span>{showAdvanced ? "▲" : "▼"}</span>
+            {showControls ? "▲ 設定を隠す" : "▼ 設定を表示"}
           </button>
-          {showAdvanced && (
-            <div className="px-4 py-3 bg-gray-50 space-y-3">
-              <div>
-                <div className="flex justify-between text-xs text-gray-600 mb-1">
-                  <span>temperature（創造性）</span>
-                  <span className="font-mono font-bold">{temperature.toFixed(2)}</span>
-                </div>
-                <input type="range" min="0" max="1" step="0.05" value={temperature}
-                  onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className="w-full accent-blue-500" />
-                <div className="flex justify-between text-xs text-gray-400 mt-0.5">
-                  <span>正確・固定</span><span>創造的・多様</span>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs text-gray-600 mb-1">
-                  <span>top_p（語彙の多様性）</span>
-                  <span className="font-mono font-bold">{topP.toFixed(2)}</span>
-                </div>
-                <input type="range" min="0.1" max="1" step="0.05" value={topP}
-                  onChange={(e) => setTopP(parseFloat(e.target.value))}
-                  className="w-full accent-blue-500" />
-                <div className="flex justify-between text-xs text-gray-400 mt-0.5">
-                  <span>集中・絞り込み</span><span>多様・広範</span>
-                </div>
-              </div>
-              <button onClick={() => handleModeChange(modeId)}
-                className="text-xs text-blue-500 hover:underline">デフォルトに戻す</button>
-            </div>
-          )}
         </div>
+
+        {showControls && (
+          <>
+            <div className="flex gap-2 flex-wrap mb-2">
+              {PROVIDERS.map((provider) => (
+                <button
+                  key={provider.id}
+                  onClick={() => handleProviderChange(provider.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    providerId === provider.id
+                      ? `${provider.color} text-white shadow-md`
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >{provider.label}</button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 flex-wrap mb-2 items-center">
+              <span className="text-xs text-gray-500">モデル：</span>
+              {currentProvider.models.map((model) => (
+                <button
+                  key={model.key}
+                  onClick={() => setModelKey(model.key)}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${
+                    modelKey === model.key
+                      ? `${currentProvider.color} text-white shadow-sm`
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  }`}
+                  title={model.description}
+                >{model.label} <span className="opacity-70">({model.description})</span></button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 flex-wrap mb-2">
+              {MODES.map((mode) => (
+                <button
+                  key={mode.id}
+                  onClick={() => handleModeChange(mode.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    modeId === mode.id
+                      ? `${mode.color} text-white shadow-md`
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >{mode.label}</button>
+              ))}
+            </div>
+
+            <div className="border rounded-lg overflow-hidden mb-1">
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="w-full px-4 py-2 text-xs text-gray-500 flex items-center justify-between hover:bg-gray-50"
+              >
+                <span>詳細設定（temperature / top_p）</span>
+                <span>{showAdvanced ? "▲" : "▼"}</span>
+              </button>
+              {showAdvanced && (
+                <div className="px-4 py-3 bg-gray-50 space-y-3">
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span>temperature（創造性）</span>
+                      <span className="font-mono font-bold">{temperature.toFixed(2)}</span>
+                    </div>
+                    <input type="range" min="0" max="1" step="0.05" value={temperature}
+                      onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                      className="w-full accent-blue-500" />
+                    <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                      <span>正確・固定</span><span>創造的・多様</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span>top_p（語彙の多様性）</span>
+                      <span className="font-mono font-bold">{topP.toFixed(2)}</span>
+                    </div>
+                    <input type="range" min="0.1" max="1" step="0.05" value={topP}
+                      onChange={(e) => setTopP(parseFloat(e.target.value))}
+                      className="w-full accent-blue-500" />
+                    <div className="flex justify-between text-xs text-gray-400 mt-0.5">
+                      <span>集中・絞り込み</span><span>多様・広範</span>
+                    </div>
+                  </div>
+                  <button onClick={() => handleModeChange(modeId)}
+                    className="text-xs text-blue-500 hover:underline">デフォルトに戻す</button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
-      <Card className="mx-6 mb-6 flex flex-col flex-1 overflow-hidden mt-2">
-        <CardHeader className="pb-2 shrink-0">
-          <CardTitle className="text-sm text-muted-foreground">
-            経営者支援AI（LangGraph + {currentProvider.label} / {currentModel.label}）
-          </CardTitle>
-        </CardHeader>
-
-        <CardContent className="flex-1 overflow-y-auto space-y-4 pb-4">
+      <Card className="mx-6 mb-6 flex flex-col flex-1 overflow-hidden mt-1">
+        <CardContent className="flex-1 overflow-y-auto space-y-4 py-4">
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[80%] rounded-lg px-4 py-2 ${
