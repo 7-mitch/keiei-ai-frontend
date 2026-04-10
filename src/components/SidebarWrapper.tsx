@@ -130,7 +130,7 @@ function SidebarContent({
   );
 }
 
-const HIDE_SIDEBAR_PATHS = ["/login", "/setup", "/reset-password"];
+const HIDE_SIDEBAR_PATHS = ["/login", "/setup", "/reset-password", "/register"];
 
 export default function SidebarWrapper() {
   const pathname        = usePathname();
