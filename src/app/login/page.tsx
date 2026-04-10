@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,19 +7,25 @@ import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email,       setEmail]       = useState("");
-  const [password,    setPassword]    = useState("");
-  const [showPass,    setShowPass]    = useState(false);
-  const [error,       setError]       = useState("");
-  const [passError,   setPassError]   = useState("");
-  const [loading,     setLoading]     = useState(false);
+  const [email,      setEmail]     = useState("");
+  const [password,   setPassword]  = useState("");
+  const [showPass,   setShowPass]  = useState(false);
+  const [error,      setError]     = useState("");
+  const [passError,  setPassError] = useState("");
+  const [loading,    setLoading]   = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
-  // パスワードバリデーション
-  const validatePassword = (value: string) => {
-    if (value.length === 0) {
-      setPassError("");
-      return;
+  // sessionStorageからメールを復元
+  useEffect(() => {
+    const saved = sessionStorage.getItem("keiei_saved_email");
+    if (saved) {
+      setEmail(saved);
+      setRememberMe(true);
     }
+  }, []);
+
+  const validatePassword = (value: string) => {
+    if (value.length === 0) { setPassError(""); return; }
     if (value.length < 8) {
       setPassError("8文字以上で入力してください");
     } else if (value.length > 20) {
@@ -38,10 +44,22 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     if (passError) return;
+    if (!email || !password) {
+      setError("メールアドレスとパスワードを入力してください");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       await authApi.login(email, password);
+
+      // メールアドレスの保存・削除
+      if (rememberMe) {
+        sessionStorage.setItem("keiei_saved_email", email);
+      } else {
+        sessionStorage.removeItem("keiei_saved_email");
+      }
+
       router.push("/dashboard");
     } catch {
       setError("メールまたはパスワードが間違っています");
@@ -63,49 +81,56 @@ export default function LoginPage() {
 
           {/* メールアドレス */}
           <div>
-            <label className="text-sm font-medium">メールアドレス</label>
+            <label htmlFor="email" className="text-sm font-medium">
+              メールアドレス
+            </label>
             <input
+              id="email"
+              name="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
               placeholder="メールアドレスを入力"
+              autoComplete="email"
               className="w-full mt-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           {/* パスワード */}
           <div>
-            <label className="text-sm font-medium">パスワード</label>
+            <label htmlFor="password" className="text-sm font-medium">
+              パスワード
+            </label>
             <p className="text-xs text-muted-foreground mt-0.5">
               8〜20文字・英字と数字を含む
             </p>
             <div className="relative mt-1">
               <input
+                id="password"
+                name="password"
                 type={showPass ? "text" : "password"}
                 value={password}
                 onChange={handlePasswordChange}
                 onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                 placeholder="パスワードを入力"
+                autoComplete="current-password"
                 className={`w-full px-3 py-2 pr-10 border rounded-md text-sm focus:outline-none focus:ring-2 ${
-                  passError
-                    ? "border-red-400 focus:ring-red-400"
-                    : "focus:ring-blue-500"
+                  passError ? "border-red-400 focus:ring-red-400" : "focus:ring-blue-500"
                 }`}
               />
-              {/* 👁 表示トグルボタン */}
               <button
                 type="button"
                 onClick={() => setShowPass(!showPass)}
+                aria-label={showPass ? "パスワードを隠す" : "パスワードを表示"}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 tabIndex={-1}
               >
                 {showPass ? (
-                  // 目を閉じるアイコン
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                   </svg>
                 ) : (
-                  // 目を開くアイコン
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -113,16 +138,28 @@ export default function LoginPage() {
                 )}
               </button>
             </div>
-            {/* バリデーションエラー */}
-            {passError && (
-              <p className="text-red-500 text-xs mt-1">{passError}</p>
-            )}
+            {passError && <p className="text-red-500 text-xs mt-1">{passError}</p>}
           </div>
 
-          {/* ログインエラー */}
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
+          {/* メールアドレスを保存（sessionStorage） */}
+          <div className="flex items-center gap-2">
+            <input
+              id="rememberMe"
+              name="rememberMe"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-blue-500"
+            />
+            <label htmlFor="rememberMe" className="text-sm text-gray-600 cursor-pointer">
+              メールアドレスを保存する
+            </label>
+          </div>
+          <p className="text-xs text-gray-400 -mt-2">
+            ※ ブラウザを閉じると自動的に削除されます
+          </p>
+
+          {error && <p className="text-red-500 text-sm">{error}</p>}
 
           <Button
             className="w-full"
