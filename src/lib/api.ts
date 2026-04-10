@@ -5,7 +5,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 // ===== axiosインスタンス =====
 export const api = axios.create({
   baseURL: API_URL,
-  headers: { "Content-Type": "application/json" },
+  headers: { 
+    "Content-Type": "application/json", 
+    "ngrok-skip-browser-warning":"true",
+  },
 });
 
 // ===== トークンを自動付与 =====
