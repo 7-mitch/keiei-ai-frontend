@@ -130,11 +130,13 @@ function SidebarContent({
   );
 }
 
+const HIDE_SIDEBAR_PATHS = ["/login", "/setup", "/reset-password"];
+
 export default function SidebarWrapper() {
   const pathname        = usePathname();
   const [open, setOpen] = useState(false);
 
-  if (pathname === "/login") return null;
+  if (HIDE_SIDEBAR_PATHS.some(p => pathname.startsWith(p))) return null;
 
   return (
     <>
@@ -158,13 +160,15 @@ export default function SidebarWrapper() {
 
       {/* スマートフォン：オーバーレイ */}
       {open && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <SidebarContent pathname={pathname} onClose={() => setOpen(false)} />
+        <>
+          <div className="md:hidden fixed inset-0 z-50 w-60">
+            <SidebarContent pathname={pathname} onClose={() => setOpen(false)} />
+          </div>
           <div
-            className="flex-1 bg-black bg-opacity-50"
+            className="md:hidden fixed inset-0 z-40 bg-black/40"
             onClick={() => setOpen(false)}
           />
-        </div>
+        </>
       )}
     </>
   );
