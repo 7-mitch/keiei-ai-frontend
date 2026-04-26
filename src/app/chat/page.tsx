@@ -21,6 +21,7 @@ interface Message {
   mode?:         string;
   provider?:     string;
   model_key?:    string;
+  nasa_tlx?:     number | null;
 }
 
 const routeColor: Record<string, string> = {
@@ -33,6 +34,7 @@ const routeColor: Record<string, string> = {
   cash_flow:     "bg-emerald-100 text-emerald-800",
   project:       "bg-orange-100 text-orange-800",
   file_analysis: "bg-sky-100 text-sky-800",
+  advisor:       "bg-violet-100 text-violet-800",
 };
 
 const routeLabel: Record<string, string> = {
@@ -45,7 +47,15 @@ const routeLabel: Record<string, string> = {
   cash_flow:     "資金繰り",
   project:       "工程管理",
   file_analysis: "ファイル解析",
+  advisor:       "戦略・認知整理",
 };
+
+const COGNITIVE_TRIGGERS = [
+  { label: "🧠 頭を整理したい",      text: "頭を整理したいです。今考えていることを整理する手伝いをしてください。" },
+  { label: "😰 迷っている",          text: "今、判断に迷っています。整理する手伝いをしてください。" },
+  { label: "🎯 優先順位がわからない", text: "優先順位がわからなくなっています。整理する手伝いをしてください。" },
+  { label: "💡 戦略を考えたい",      text: "事業戦略を考えたいです。SWOT分析から始めてください。" },
+];
 
 const PROVIDERS = [
   {
@@ -87,6 +97,17 @@ const PROVIDERS = [
       { key: "ultra", label: "Ultra", description: "最高精度" },
     ],
   },
+  // ← 追加：Groq
+  {
+    id:    "groq",
+    label: "🚀 Groq",
+    color: "bg-red-500",
+    models: [
+      { key: "qwen3",   label: "Qwen3-32B",    description: "高精度・無料枠" },
+      { key: "llama70", label: "Llama3.3-70B", description: "バランス・高速" },
+      { key: "llama8",  label: "Llama3.1-8B",  description: "超高速・軽量" },
+    ],
+  },
 ];
 
 const MODES = [
@@ -102,11 +123,12 @@ export default function ChatPage() {
   const [messages,     setMessages]     = useState<Message[]>([
     {
       role:    "ai",
-      content: "こんにちは。経営に関するご質問をどうぞ。\n例: 「今月の取引件数は？」「補助金について教えて」",
+      content: "こんにちは。経営に関するご質問をどうぞ。\n例: 「今月の取引件数は？」「補助金について教えて」\n\n頭の整理や戦略分析には下のボタンもご利用ください。",
     },
   ]);
   const [input,        setInput]        = useState("");
   const [loading,      setLoading]      = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const [file,         setFile]         = useState<File | null>(null);
   const [listening,    setListening]    = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -116,6 +138,10 @@ export default function ChatPage() {
   const [topP,         setTopP]         = useState(0.9);
   const [providerId,   setProviderId]   = useState("production");
   const [modelKey,     setModelKey]     = useState("sonnet");
+  // NASA-TLX
+  const [nasaTlxScore,   setNasaTlxScore]   = useState<number>(5);
+  const [showNasaSlider, setShowNasaSlider] = useState(false);
+  const [nasaTargetIdx,  setNasaTargetIdx]  = useState<number | null>(null);
 
   const fileRef        = useRef<HTMLInputElement>(null);
   const bottomRef      = useRef<HTMLDivElement>(null);
@@ -172,12 +198,40 @@ export default function ChatPage() {
     setListening(false);
   };
 
+  const submitNasaTlx = async (msgIndex: number, score: number) => {
+    const msg = messages[msgIndex];
+    if (!msg.session_id) return;
+    setMessages((prev) => prev.map((m, i) =>
+      i === msgIndex ? { ...m, nasa_tlx: score } : m
+    ));
+    setShowNasaSlider(false);
+    setNasaTargetIdx(null);
+    try {
+      await api.post("/api/feedback", {
+        session_id:     msg.session_id,
+        question:       msg.question || "",
+        answer:         msg.content,
+        route:          msg.route || "advisor",
+        feedback:       msg.feedback || "good",
+        latency_ms:     msg.latency_ms,
+        nasa_tlx_score: score,
+        advisor_mode:   "cognitive",
+      });
+    } catch (e) {
+      console.error("NASA-TLX送信失敗", e);
+    }
+  };
+
   const sendFeedback = async (msgIndex: number, feedback: "good" | "bad") => {
     const msg = messages[msgIndex];
     if (!msg.session_id || msg.feedback) return;
     setMessages((prev) => prev.map((m, i) =>
       i === msgIndex ? { ...m, feedback } : m
     ));
+    if (msg.route === "advisor") {
+      setNasaTargetIdx(msgIndex);
+      setShowNasaSlider(true);
+    }
     try {
       await api.post("/api/feedback", {
         session_id: msg.session_id,
@@ -192,9 +246,10 @@ export default function ChatPage() {
     }
   };
 
-  const sendMessage = async () => {
-    if ((!input.trim() && !file) || loading) return;
-    const question = input.trim() || `ファイル「${file?.name}」を分析してください`;
+  const sendMessage = async (overrideInput?: string) => {
+    const q = (overrideInput || input).trim();
+    if ((!q && !file) || loading) return;
+    const question = q || `ファイル「${file?.name}」を分析してください`;
     const thinking = modeId === "reasoning" || modeId === "expert";
     setInput("");
     setMessages((prev) => [...prev, {
@@ -257,6 +312,20 @@ export default function ChatPage() {
           >
             {showControls ? "▲ 設定を隠す" : "▼ 設定を表示"}
           </button>
+        </div>
+
+        {/* 認知整理クイックトリガー */}
+        <div className="flex gap-2 flex-wrap mb-2">
+          {COGNITIVE_TRIGGERS.map((t) => (
+            <button
+              key={t.label}
+              onClick={() => sendMessage(t.text)}
+              disabled={loading}
+              className="px-3 py-1 rounded-full text-xs font-medium bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 disabled:opacity-50 transition-colors"
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
         {showControls && (
@@ -377,6 +446,11 @@ export default function ChatPage() {
                   {msg.file && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-white/20">{msg.file}</span>
                   )}
+                  {msg.nasa_tlx != null && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
+                      整理度 {msg.nasa_tlx}/10
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm mt-1 prose prose-sm max-w-none
                   prose-headings:font-bold prose-headings:text-gray-800
@@ -384,7 +458,9 @@ export default function ChatPage() {
                   prose-ul:list-disc prose-ul:pl-4
                   prose-ol:list-decimal prose-ol:pl-4
                   prose-li:my-0.5 prose-p:my-1">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  <ReactMarkdown>
+                      {msg.content.replace(/<think>[\s\S]*?<\/think>/g, "").trim()}                  
+                  </ReactMarkdown>
                 </div>
                 {msg.graph_json && (
                   <div className="mt-3 rounded-lg overflow-hidden border">
@@ -402,7 +478,7 @@ export default function ChatPage() {
                     className="mt-3 rounded-lg max-w-full border" />
                 )}
                 {msg.role === "ai" && msg.session_id && (
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-2 flex-wrap items-center">
                     <button onClick={() => sendFeedback(i, "good")} disabled={!!msg.feedback}
                       className={`text-xs px-2 py-1 rounded transition-colors ${
                         msg.feedback === "good" ? "bg-green-500 text-white" : "bg-gray-100 hover:bg-green-100 text-gray-600"
@@ -413,6 +489,31 @@ export default function ChatPage() {
                       }`} title="改善が必要">👎</button>
                     {msg.feedback && (
                       <span className="text-xs text-gray-400 self-center">フィードバック送信済み</span>
+                    )}
+                    {/* NASA-TLXスライダー */}
+                    {msg.route === "advisor" && msg.feedback && msg.nasa_tlx == null && nasaTargetIdx === i && showNasaSlider && (
+                      <div className="w-full mt-2 p-3 bg-violet-50 rounded-lg border border-violet-200">
+                        <p className="text-xs text-violet-700 font-medium mb-2">
+                          頭の整理度を教えてください（1=まだ混乱 / 10=すっきり整理）
+                        </p>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="range" min="1" max="10" step="1"
+                            value={nasaTlxScore}
+                            onChange={(e) => setNasaTlxScore(Number(e.target.value))}
+                            className="flex-1 accent-violet-500"
+                          />
+                          <span className="text-sm font-bold text-violet-700 min-w-[2rem] text-center">
+                            {nasaTlxScore}
+                          </span>
+                          <button
+                            onClick={() => submitNasaTlx(i, nasaTlxScore)}
+                            className="text-xs px-3 py-1 bg-violet-600 text-white rounded hover:bg-violet-700"
+                          >
+                            送信
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 )}
@@ -467,7 +568,12 @@ export default function ChatPage() {
             placeholder={listening ? "音声認識中..." : "質問を入力してください..."}
             className="flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={loading} />
-          <Button onClick={sendMessage} disabled={loading}>送信</Button>
+          {loading ? (
+             <Button onClick={() => { abortRef.current?.abort(); setLoading(false); }}
+                 className="bg-red-500 hover:bg-red-600 text-white">停止</Button>
+          ) : (
+            <Button onClick={() => sendMessage()}>送信</Button>
+          )}
         </div>
       </Card>
     </div>

@@ -179,6 +179,10 @@ export const webApi = {
     const res = await api.post("/api/web/collect");
     return res.data;
   },
+  collectIndustry: async (industry: string) => {
+    const res = await api.post("/api/web/collect/industry", { industry });
+    return res.data;
+  },
   collectUrl: async (url: string) => {
     const res = await api.post("/api/web/collect/url", { url });
     return res.data;
@@ -215,6 +219,60 @@ export const fraudApi = {
   },
   evaluateModel: async () => {
     const res = await api.get("/api/fraud/model/evaluate");
+    return res.data;
+  },
+};
+
+// ===== 型定義（追加） =====
+
+export interface AuditStats {
+  total: number;
+  by_framework: Record<string, number>;
+  by_severity: Record<string, number>;
+}
+
+export interface AuditItem {
+  id: string;
+  content: string;
+  metadata: {
+    framework:   string;
+    category:    string;
+    severity:    string;
+    item_id:     string;
+    description: string;
+  };
+}
+
+export interface AuditSearchRequest {
+  query:      string;
+  framework?: "J-SOX" | "AIGIS";
+  severity?:  string;
+  k?:         number;
+}
+
+export interface AuditSearchResponse {
+  query:   string;
+  results: AuditItem[];
+}
+
+// ===== complianceApi（追加） =====
+
+export const complianceApi = {
+  getAuditStats: async (): Promise<AuditStats> => {
+    const res = await api.get("/api/compliance/audit-items/stats");
+    return res.data;
+  },
+  searchAuditItems: async (req: AuditSearchRequest): Promise<AuditSearchResponse> => {
+    const res = await api.post("/api/compliance/audit-items/search", req);
+    return res.data;
+  },
+  getAuditItems: async (params?: {
+    framework?: string;
+    severity?:  string;
+    limit?:     number;
+    offset?:    number;
+  }): Promise<AuditItem[]> => {
+    const res = await api.get("/api/compliance/audit-items", { params });
     return res.data;
   },
 };

@@ -289,7 +289,7 @@ export default function ApprovalPage() {
         },
         { headers: headers() }
       );
-      setJsoxResult(res.data.result);
+      setJsoxResult({...res.data.data, _document_id: res.data.document_id});
       showToast("J-SOX 3点セットを生成しました", "success");
     } catch (e: any) {
       showToast(e.response?.data?.detail || "生成に失敗しました", "error");
@@ -305,7 +305,7 @@ export default function ApprovalPage() {
 
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  const tabs: { key: Tab; label: string; Icon: () => JSX.Element }[] = [
+  const tabs: { key: Tab; label: string; Icon: () => React.ReactElement }[] = [
     { key: "pending",       label: "承認待ち",        Icon: Icons.Clock },
     { key: "notifications", label: `通知${unreadCount > 0 ? ` (${unreadCount})` : ""}`, Icon: Icons.Bell },
     { key: "new_request",   label: "新規申請",         Icon: Icons.Plus },
@@ -712,26 +712,95 @@ export default function ApprovalPage() {
                   生成完了: {jsoxResult.process_name}
                 </div>
 
-                {[
-                  { label: "業務記述書",                          key: "business_description", color: "text-blue-300",   border: "border-blue-500/20" },
-                  { label: "フローチャート (Mermaid)",             key: "flowchart",            color: "text-purple-300", border: "border-purple-500/20" },
-                  { label: "RCM (リスクコントロールマトリクス)",  key: "rcm",                  color: "text-orange-300", border: "border-orange-500/20" },
-                ].map(({ label, key, color, border }) => (
-                  <div key={key} className={`bg-white/5 border ${border} rounded-xl p-4`}>
-                    <h4 className={`text-sm font-medium ${color} mb-3 flex items-center gap-2`}>
-                      <Icons.FileText />{label}
-                    </h4>
-                    <pre className="text-xs text-gray-300 whitespace-pre-wrap overflow-x-auto bg-black/20 p-3 rounded-lg max-h-64 overflow-y-auto">
-                      {key === "flowchart"
-                        ? jsoxResult[key]?.content?.mermaid
-                        : jsoxResult[key]?.content_md || JSON.stringify(jsoxResult[key]?.content, null, 2)}
-                    </pre>
-                  </div>
-                ))}
+                {/* 業務記述書 */}
+                <div className="bg-white/5 border border-blue-500/20 rounded-xl p-4">
+                  <h4 className="text-sm font-medium text-blue-300 mb-3 flex items-center gap-2"><Icons.FileText />業務記述書</h4>
+                  {Array.isArray(jsoxResult.business_description)
+                    ? jsoxResult.business_description.map((sec: any, i: number) => (
+                        <div key={i} className="mb-3">
+                          <p className="text-xs font-medium text-white mb-1">{sec.section}</p>
+                          {sec.items?.map((item: string, j: number) => (
+                            <p key={j} className="text-xs text-gray-300 ml-3 leading-relaxed">{item}</p>
+                          ))}
+                        </div>
+                      ))
+                    : <pre className="text-xs text-gray-300 whitespace-pre-wrap bg-black/20 p-3 rounded-lg">{String(jsoxResult.business_description)}</pre>
+                  }
+                </div>
+
+                {/* フローチャート */}
+                <div className="bg-white/5 border border-purple-500/20 rounded-xl p-4">
+                  <h4 className="text-sm font-medium text-purple-300 mb-3 flex items-center gap-2"><Icons.FileText />フローチャート（Mermaid）</h4>
+                  <pre className="text-xs text-gray-300 whitespace-pre-wrap overflow-x-auto bg-black/20 p-3 rounded-lg max-h-64 overflow-y-auto">{jsoxResult.flowchart}</pre>
+                </div>
+
+                {/* RCM */}
+                <div className="bg-white/5 border border-orange-500/20 rounded-xl p-4">
+                  <h4 className="text-sm font-medium text-orange-300 mb-3 flex items-center gap-2"><Icons.FileText />RCM（リスクコントロールマトリクス）</h4>
+                  {Array.isArray(jsoxResult.rcm) ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-white/20">
+                            <th className="text-left p-2 text-gray-400 font-medium">No</th>
+                            <th className="text-left p-2 text-gray-400 font-medium">業務</th>
+                            <th className="text-left p-2 text-gray-400 font-medium">リスク</th>
+                            <th className="text-left p-2 text-gray-400 font-medium">統制活動</th>
+                            <th className="text-left p-2 text-gray-400 font-medium">実在性</th>
+                            <th className="text-left p-2 text-gray-400 font-medium">網羅性</th>
+                            <th className="text-left p-2 text-gray-400 font-medium">評価</th>
+                            <th className="text-left p-2 text-gray-400 font-medium">種別</th>
+                            <th className="text-left p-2 text-gray-400 font-medium">頻度</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {jsoxResult.rcm.map((row: any, i: number) => (
+                            <tr key={i} className="border-b border-white/10 hover:bg-white/5">
+                              <td className="p-2 text-gray-400">{row.no ?? i+1}</td>
+                              <td className="p-2 text-gray-300">{row.business ?? "-"}</td>
+                              <td className="p-2 text-red-300">{row.risk}</td>
+                              <td className="p-2 text-green-300">{row.control}</td>
+                              <td className="p-2 text-center">{row.assertions?.existence ? "○" : "-"}</td>
+                              <td className="p-2 text-center">{row.assertions?.completeness ? "○" : "-"}</td>
+                              <td className="p-2 text-center">{row.assertions?.valuation ? "○" : "-"}</td>
+                              <td className="p-2 text-gray-300">{row.type}</td>
+                              <td className="p-2 text-gray-300">{row.frequency}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : <pre className="text-xs text-gray-300 whitespace-pre-wrap bg-black/20 p-3 rounded-lg">{JSON.stringify(jsoxResult.rcm, null, 2)}</pre>}
+                </div>
 
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 flex gap-2 text-xs text-yellow-300">
                   <Icons.AlertTriangle />
                   <span>{jsoxResult.disclaimer}</span>
+                </div>
+
+                <div className="bg-white/5 border border-white/15 rounded-xl p-4">
+                  <h4 className="text-sm font-medium text-white mb-3">内部監査人コメント（監査証跡）</h4>
+                  <textarea
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    className={`${inputCls} resize-none mb-3`}
+                    rows={3}
+                    placeholder="確認内容・修正指示・承認コメントを入力..."
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => { if (!comment.trim()) { showToast("コメントを入力してください", "error"); return; } try { await axios.post(`${API}/api/approval/jsox/${jsoxResult._document_id}/comment`, { comment, action: "approve" }, { headers: headers() }); showToast("承認・監査コメントを記録しました", "success"); setComment(""); } catch { showToast("記録に失敗しました", "error"); } }}
+                      className="flex-1 bg-green-600 hover:bg-green-500 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Icons.Check />承認・記録
+                    </button>
+                    <button
+                      onClick={async () => { if (!comment.trim()) { showToast("差戻し理由を入力してください", "error"); return; } try { await axios.post(`${API}/api/approval/jsox/${jsoxResult._document_id}/comment`, { comment, action: "reject" }, { headers: headers() }); showToast("差戻しコメントを記録しました", "success"); setComment(""); } catch { showToast("記録に失敗しました", "error"); } }}
+                      className="flex-1 bg-red-600/80 hover:bg-red-600 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Icons.X />差戻し
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

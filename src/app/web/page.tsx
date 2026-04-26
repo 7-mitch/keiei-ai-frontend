@@ -7,6 +7,64 @@ import { Badge } from "@/components/ui/badge";
 
 const INDUSTRIES = ["介護", "医療", "建設", "製造", "法律", "経理"];
 
+const DATA_TYPE_LABEL: Record<string, { label: string; color: string }> = {
+  financial_news:           { label: "金融ニュース", color: "bg-blue-100 text-blue-800"    },
+  regulatory_news:          { label: "金融庁",       color: "bg-purple-100 text-purple-800" },
+  market_news:              { label: "市場情報",     color: "bg-indigo-100 text-indigo-800" },
+  regulatory_care:          { label: "介護法令",     color: "bg-pink-100 text-pink-800"     },
+  regulatory_medical:       { label: "医療法令",     color: "bg-red-100 text-red-800"       },
+  regulatory_construction:  { label: "建設法令",     color: "bg-orange-100 text-orange-800" },
+  regulatory_manufacturing: { label: "製造法令",     color: "bg-yellow-100 text-yellow-800" },
+  regulatory_legal:         { label: "法令検索",     color: "bg-green-100 text-green-800"   },
+  regulatory_accounting:    { label: "経理・税務",   color: "bg-teal-100 text-teal-800"     },
+  custom_url:               { label: "URL指定",      color: "bg-gray-100 text-gray-800"     },
+  sns_insight:              { label: "SNS",          color: "bg-cyan-100 text-cyan-800"     },
+  tech_insight:             { label: "技術情報",     color: "bg-violet-100 text-violet-800" },
+};
+
+const DOMAIN_NAME: Record<string, string> = {
+  "mhlw.go.jp":           "厚生労働省",
+  "meti.go.jp":           "経済産業省",
+  "mlit.go.jp":           "国土交通省",
+  "nta.go.jp":            "国税庁",
+  "fsa.go.jp":            "金融庁",
+  "boj.or.jp":            "日本銀行",
+  "cao.go.jp":            "内閣府",
+  "laws.e-gov.go.jp":     "e-Gov法令検索",
+  "e-gov.go.jp":          "e-Gov",
+  "nikkei.com":           "日本経済新聞",
+  "reuters.com":          "ロイター",
+  "asahi.com":            "朝日新聞",
+  "yomiuri.co.jp":        "読売新聞",
+  "mainichi.jp":          "毎日新聞",
+  "nhk.or.jp":            "NHK",
+  "traders.co.jp":        "トレーダーズ",
+  "minkabu.jp":           "みんかぶ",
+  "investing.com":        "Investing.com",
+  "zenhokan.or.jp":       "全国老人保健施設協会",
+  "roken.or.jp":          "全国老人福祉施設協議会",
+  "fukushi.metro.tokyo":  "東京都福祉局",
+  "smacare.jp":           "スマケア",
+  "kaipoke.biz":          "カイポケ",
+  "hokennomadoguchi.com": "保険の窓口",
+  "ricoh.co.jp":          "リコー",
+  "keyence.co.jp":        "キーエンス",
+  "nttdata-kansai.co.jp": "NTTデータ関西",
+  "youtube.com":          "YouTube",
+};
+
+const getDomainName = (url: string): string => {
+  try {
+    const hostname = new URL(url).hostname.replace("www.", "");
+    for (const [domain, name] of Object.entries(DOMAIN_NAME)) {
+      if (hostname.includes(domain)) return name;
+    }
+    return hostname;
+  } catch {
+    return url;
+  }
+};
+
 export default function WebPage() {
   const [url,             setUrl]             = useState("");
   const [logs,            setLogs]            = useState<WebLog[]>([]);
@@ -61,7 +119,7 @@ export default function WebPage() {
     setLoadingIndustry(industry);
     setError("");
     try {
-      await webApi.collectUrl(`industry:${industry}`);
+      await webApi.collectIndustry(industry);
       await fetchLogs();
     } catch {
       setError(`${industry}の法令収集に失敗しました。`);
@@ -219,26 +277,36 @@ export default function WebPage() {
             <p className="text-sm text-muted-foreground">ログがありません</p>
           ) : (
             <div className="space-y-2">
-              {logs.map((log) => (
-                <div
-                  key={log.id}
-                  className="flex items-center gap-4 text-sm border-b pb-2"
-                >
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${
-                    log.status === "success"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-red-100 text-red-800"
-                  }`}>
-                    {log.status}
-                  </span>
-                  <span className="flex-1 truncate text-muted-foreground">
-                    {log.url}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(log.processed_at).toLocaleString("ja-JP")}
-                  </span>
-                </div>
-              ))}
+              {logs.map((log) => {
+                const typeInfo   = DATA_TYPE_LABEL[log.data_type] ?? { label: log.data_type, color: "bg-gray-100 text-gray-800" };
+                const sourceName = getDomainName(log.url);
+                return (
+                  <div
+                    key={log.id}
+                    className="flex items-center gap-3 text-sm border-b pb-2"
+                  >
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${typeInfo.color}`}>
+                      {typeInfo.label}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-xs whitespace-nowrap ${
+                      log.status === "success"
+                        ? "bg-green-100 text-green-800"
+                        : "bg-red-100 text-red-800"
+                    }`}>
+                      {log.status === "success" ? "成功" : "失敗"}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-xs whitespace-nowrap bg-gray-50 text-gray-700 border">
+                      {sourceName}
+                    </span>
+                    <span className="flex-1 truncate text-muted-foreground">
+                      {log.url}
+                    </span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(log.processed_at).toLocaleString("ja-JP")}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
