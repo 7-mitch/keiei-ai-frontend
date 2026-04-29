@@ -237,6 +237,8 @@ export default function ApprovalPage() {
   });
   const [jsoxResult, setJsoxResult] = useState<any>(null);
   const [jsoxLoading, setJsoxLoading] = useState(false);
+  const [consistencyResult, setConsistencyResult] = useState<any>(null);
+  const [consistencyLoading, setConsistencyLoading] = useState(false);
 
   const getToken = () => typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
   const headers = () => ({ Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" });
@@ -317,6 +319,25 @@ export default function ApprovalPage() {
       showToast("J-SOX 3点セットを生成しました", "success");
     } catch (e: any) { showToast(e.response?.data?.detail || "生成に失敗しました", "error"); }
     finally { setJsoxLoading(false); }
+  };
+
+  const handleConsistencyCheck = async () => {
+    if (!jsoxResult) return;
+    setConsistencyLoading(true);
+    setConsistencyResult(null);
+    try {
+      const res = await axios.post(`${API}/api/approval/jsox/consistency-check`, {
+        business_description: jsoxResult.business_description,
+        flowchart: jsoxResult.flowchart,
+        rcm: jsoxResult.rcm,
+      }, { headers: headers() });
+      setConsistencyResult(res.data.data);
+      showToast("整合性チェック完了", "success");
+    } catch (e: any) {
+      showToast("チェックに失敗しました", "error");
+    } finally {
+      setConsistencyLoading(false);
+    }
   };
 
   const handlePrint = () => {
@@ -582,9 +603,10 @@ export default function ApprovalPage() {
                   <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
                     <Icons.Check />生成完了: {jsoxForm.process_name}
                   </div>
-                  <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 hover:bg-gray-100 text-xs font-medium rounded-lg transition-colors">
-                    <Icons.Print />A4印刷・PDF保存
-                  </button>
+                  <div className="flex gap-2">
+                    <button onClick={handleConsistencyCheck} disabled={consistencyLoading} className="flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-black text-xs font-medium rounded-lg transition-colors">{consistencyLoading ? "チェック中..." : "整合性チェック"}</button>
+                    <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 hover:bg-gray-100 text-xs font-medium rounded-lg transition-colors"><Icons.Print />A4印刷・PDF保存</button>
+                  </div>
                 </div>
 
                 {/* 業務記述書（表形式） */}
@@ -676,6 +698,36 @@ export default function ApprovalPage() {
                 </div>
 
                 <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 flex gap-2 text-xs text-yellow-300">
+                {consistencyResult && (
+                  <div className="bg-white/5 border border-white/15 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-white">整合性チェック結果</h4>
+                      <div className={`px-3 py-1 rounded-full text-xs font-bold ${consistencyResult.score >= 80 ? "bg-green-500/20 text-green-300" : consistencyResult.score >= 60 ? "bg-yellow-500/20 text-yellow-300" : "bg-red-500/20 text-red-300"}`}>
+                        スコア: {consistencyResult.score}点 / {consistencyResult.status}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-300">{consistencyResult.summary}</p>
+                    {consistencyResult.issues?.length > 0 ? (
+                      <div className="space-y-2">
+                        {consistencyResult.issues.map((issue: any, i: number) => (
+                          <div key={i} className={`p-3 rounded-lg border text-xs ${issue.severity === "高" ? "bg-red-500/10 border-red-500/30" : issue.severity === "中" ? "bg-yellow-500/10 border-yellow-500/30" : "bg-blue-500/10 border-blue-500/30"}`}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${issue.severity === "高" ? "bg-red-500/30 text-red-300" : issue.severity === "中" ? "bg-yellow-500/30 text-yellow-300" : "bg-blue-500/30 text-blue-300"}`}>{issue.severity}</span>
+                              <span className="text-gray-400">{issue.category}</span>
+                            </div>
+                            <p className="text-gray-200 mb-1">{issue.description}</p>
+                            <p className="text-green-300">修正提案: {issue.suggestion}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 text-xs text-green-300">
+                        矛盾・問題は検出されませんでした
+                      </div>
+                    )}
+                  </div>
+                )}
+
                   <Icons.AlertTriangle />
                   <span>本書はAIが生成した草案です。必ず内部監査人が内容を確認・修正の上、承認してください。金融庁の実施基準に準拠した最終判断は専門家が行ってください。</span>
                 </div>
@@ -705,3 +757,5 @@ export default function ApprovalPage() {
     </div>
   );
 }
+
+
