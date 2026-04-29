@@ -257,10 +257,12 @@ export default function ApprovalPage() {
 
   const handleCreateRequest = async () => {
     if (!form.title.trim()) { showToast("タイトルを入力してください", "error"); return; }
+    const validApprovers = form.approvers.filter(a => a.id?.trim() && a.name?.trim() && a.role?.trim());
+    if (validApprovers.length === 0) { showToast("承認者のID・氏名・役職をすべて入力してください", "error"); return; }
     try {
       await axios.post(
         `${API}/api/approval/requests`,
-        { ...form, due_date: form.due_date || null, approvers: form.approvers.filter(a => a.id && a.name) },
+        { ...form, due_date: form.due_date || null, approvers: form.approvers.filter(a => a.id?.trim() && a.name?.trim() && a.role?.trim()) },
         { headers: headers() }
       );
       showToast("申請を作成しました", "success");
@@ -709,7 +711,20 @@ export default function ApprovalPage() {
               <div className="space-y-4 border-t border-white/10 pt-6">
                 <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
                   <Icons.Check />
-                  生成完了: {jsoxResult.process_name}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
+                    <Icons.Check />
+                    生成完了: {jsoxResult.process_name}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => window.print()}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-colors"
+                    >
+                      🖨️ A4印刷
+                    </button>
+                  </div>
+                </div>
                 </div>
 
                 {/* 業務記述書 */}
@@ -811,3 +826,5 @@ export default function ApprovalPage() {
     </div>
   );
 }
+
+
