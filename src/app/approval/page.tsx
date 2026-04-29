@@ -602,7 +602,7 @@ export default function ApprovalPage() {
                               </tr>
                             </thead>
                             <tbody>
-                              {sec.items?.map((item: string, j: number) => (
+                              {(Array.isArray(sec.items) ? sec.items : String(sec.items).split(/(?=\(\d+\))/)).filter(Boolean).map((item: string, j: number) => (
                                 <tr key={j} className="border border-white/10 hover:bg-white/5">
                                   <td className="p-2 text-gray-400 border border-white/10 text-center">{j + 1}</td>
                                   <td className="p-2 text-gray-200 border border-white/10 leading-relaxed">{item}</td>
