@@ -28,16 +28,18 @@ interface Settings {
 }
 
 // ===== APIヘルパー =====
-function getAuthHeader() {
+function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem("token") || sessionStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function apiFetch(path: string, options: RequestInit = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers: { "Content-Type": "application/json", ...getAuthHeader(), ...options.headers },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...getAuthHeader(),
+    ...(options.headers as Record<string, string> ?? {}),
+  };
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!res.ok) throw new Error(`API Error: ${res.status}`);
   return res.json();
 }
@@ -450,3 +452,5 @@ export default function VoiceSettingsPage() {
     </div>
   );
 }
+
+
