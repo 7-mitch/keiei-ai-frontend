@@ -60,7 +60,7 @@ export default function LoginPage() {
         sessionStorage.removeItem("keiei_saved_email");
       }
 
-      router.push("/dashboard");
+      router.push("/voice");
     } catch {
       setError("メールまたはパスワードが間違っています");
     } finally {
