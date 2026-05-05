@@ -170,7 +170,7 @@ export default function VoiceCallCenter() {
       // 音声再生
       if (result.audio_url) {
         setStatus("speaking");
-        const audio = new Audio(`http://localhost:8000${result.audio_url}`);
+        const audio = new Audio(`${API_BASE}${result.audio_url}`);
         audioRef.current = audio;
         audio.onended = () => setStatus("listening");
         audio.play();
@@ -499,3 +499,4 @@ export default function VoiceCallCenter() {
     </div>
   );
 }
+
