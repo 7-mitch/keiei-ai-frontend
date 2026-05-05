@@ -21,6 +21,7 @@ const NAV_GROUPS = [
       { href: "/rag",       label: "RAG検索",         icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
       // ← 追加：認知整理ネットワーク
       { href: "/cognitive", label: "認知整理ネットワーク", icon: "M13 10V3L4 14h7v7l9-11h-7z" },
+      { href: "/voice/settings", label: "ボイスボット設定", icon: "M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" },
     ],
   },
   {
@@ -127,6 +128,7 @@ function SidebarContent({
       </nav>
 
       <div className="px-5 py-4 border-t border-gray-800">
+        <button onClick={() => { localStorage.removeItem("access_token"); window.location.href = "/login"; }} className="w-full text-left text-xs text-gray-500 hover:text-red-400 transition-colors mb-2">ログアウト</button>
         <p className="text-xs text-gray-600">v2.1.0</p>
       </div>
     </aside>
@@ -176,4 +178,5 @@ export default function SidebarWrapper() {
     </>
   );
 }
+
 
