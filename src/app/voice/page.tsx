@@ -111,7 +111,8 @@ export default function VoiceCallCenter() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       startLevelMonitor(stream);
 
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
       audioChunksRef.current = [];
 
       recorder.ondataavailable = e => {
@@ -122,7 +123,7 @@ export default function VoiceCallCenter() {
         stopLevelMonitor();
         stream.getTracks().forEach(t => t.stop());
 
-        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const blob = new Blob(audioChunksRef.current, { type: mimeType || "audio/webm" });
         await processAudio(blob);
       };
 
@@ -499,5 +500,6 @@ export default function VoiceCallCenter() {
     </div>
   );
 }
+
 
 
