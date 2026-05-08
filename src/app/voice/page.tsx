@@ -30,6 +30,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function sendAudioToAPI(audioBlob: Blob): Promise<{
   text: string;
+  transcript: string;
   audio_url?: string;
   llm_mode: string;
   latency_ms: number;
@@ -153,7 +154,7 @@ export default function VoiceCallCenter() {
       const result = await sendAudioToAPI(blob);
 
       // ユーザー発話をメッセージ追加（STT結果はAPIから返ってくる想定）
-      addMessage("user", result.text || "（音声入力）", {});
+      addMessage("user", result.transcript || "（音声入力）", {});
 
       if (result.escalate) {
         addMessage("system", "オペレーターに転送しています...", {});
