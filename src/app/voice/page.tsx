@@ -153,7 +153,6 @@ export default function VoiceCallCenter() {
       setStatus("processing");
       const result = await sendAudioToAPI(blob);
 
-      // ユーザー発話をメッセージ追加（STT結果はAPIから返ってくる想定）
       addMessage("user", result.transcript || "（音声入力）", {});
 
       if (result.escalate) {
@@ -162,20 +161,25 @@ export default function VoiceCallCenter() {
         return;
       }
 
-      // AI応答追加
       addMessage("assistant", result.text, {
         llm_mode: result.llm_mode,
         latency_ms: result.latency_ms,
         pii_detected: result.pii_detected,
       });
 
-      // 音声再生
+      // 音声再生（2回GETバグ修正）
       if (result.audio_url) {
         setStatus("speaking");
-        const audio = new Audio(`${API_BASE}${result.audio_url}`);
-        audioRef.current = audio;
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+        }
+        const audio = audioRef.current;
+        audio.pause();
+        audio.src = `${API_BASE}${result.audio_url}`;
         audio.onended = () => setStatus("listening");
-        audio.play();
+        audio.onerror = () => setStatus("listening");
+        audio.load();
+        audio.play().catch(() => setStatus("listening"));
       } else {
         setStatus("listening");
       }
@@ -211,7 +215,10 @@ export default function VoiceCallCenter() {
   const endCall = () => {
     mediaRecorderRef.current?.stop();
     stopLevelMonitor();
-    audioRef.current?.pause();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = "";
+    }
     setIsRecording(false);
     setStatus("idle");
     setMessages([]);
@@ -407,9 +414,7 @@ export default function VoiceCallCenter() {
           justifyContent: "center",
           gap: "24px",
         }}>
-
           {status === "idle" ? (
-            /* 通話開始ボタン */
             <button onClick={startCall} style={{
               width: "72px", height: "72px", borderRadius: "50%",
               background: "linear-gradient(135deg, #10b981, #059669)",
@@ -419,12 +424,8 @@ export default function VoiceCallCenter() {
               boxShadow: "0 0 20px rgba(16,185,129,0.4)",
               transition: "transform 0.2s, box-shadow 0.2s",
             }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.08)";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
-              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.08)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
             >📞</button>
           ) : (
             <>
@@ -501,6 +502,3 @@ export default function VoiceCallCenter() {
     </div>
   );
 }
-
-
-
