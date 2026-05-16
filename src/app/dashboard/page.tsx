@@ -7,6 +7,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
 } from "recharts";
+import RagasDashboard from "./RagasDashboard";  // ← 追加
 
 function KpiCard({
   title, value, sub, color
@@ -246,6 +247,9 @@ export default function DashboardPage() {
 
       {/* 監査リスクパネル */}
       <AuditRiskPanel stats={auditStats} />
+
+      {/* RAG品質評価ダッシュボード */}
+      <RagasDashboard />  {/* ← 追加 */}
 
       {/* チャート */}
       {monthlyData.length > 0 ? (
