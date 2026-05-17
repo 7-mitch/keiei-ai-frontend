@@ -3,21 +3,10 @@
 /**
  * RagasDashboard.tsx — RAG品質評価ダッシュボード
  * 配置先: frontend/src/app/dashboard/RagasDashboard.tsx
- *
- * 既存の dashboard/page.tsx から以下のように呼び出す:
- *   import RagasDashboard from "./RagasDashboard";
- *   // JSX内の適切な位置に追加:
- *   <RagasDashboard />
- *
- * 使用している既存UIコンポーネント:
- *   - components/ui/card.tsx
- *   - components/ui/badge.tsx
- *   - components/ui/table.tsx
- *   - components/ui/tabs.tsx
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -100,8 +89,6 @@ function ScoreBar({ value }: { value: number | null }) {
   );
 }
 
-// ── サマリーカード ────────────────────────────────────
-
 function StatCard({
   label,
   value,
@@ -127,8 +114,6 @@ function StatCard({
     </Card>
   );
 }
-
-// ── メトリクスゲージ ──────────────────────────────────
 
 function MetricGauge({
   label,
@@ -161,6 +146,8 @@ export default function RagasDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [reviewingId, setReviewingId] = useState<number | null>(null);
+  const [reviewedIds, setReviewedIds] = useState<Set<number>>(new Set());
 
   const fetchData = useCallback(async () => {
     try {
@@ -189,10 +176,41 @@ export default function RagasDashboard() {
 
   useEffect(() => {
     fetchData();
-    // 5分ごとに自動更新
     const timer = setInterval(fetchData, 5 * 60 * 1000);
     return () => clearInterval(timer);
   }, [fetchData]);
+
+  // ── Human Review 承認・却下 ───────────────────────
+
+  const handleReview = async (evaluationId: number, action: "approve" | "reject") => {
+    setReviewingId(evaluationId);
+    try {
+      const token = localStorage.getItem("access_token");
+      const res = await fetch(`${API_BASE}/api/rag/evaluate/review`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          evaluation_id: evaluationId,
+          action,
+          reviewer_note: "",
+        }),
+      });
+
+      if (!res.ok) throw new Error("レビュー保存失敗");
+
+      const label = action === "approve" ? "承認" : "却下";
+      setReviewedIds((prev) => new Set([...prev, evaluationId]));
+      alert(`${label}しました。J-SOX監査証跡として保存されました。`);
+      fetchData();
+    } catch (e) {
+      alert("エラーが発生しました。再度お試しください。");
+    } finally {
+      setReviewingId(null);
+    }
+  };
 
   // ── レンダリング ─────────────────────────────────
 
@@ -220,6 +238,10 @@ export default function RagasDashboard() {
   const hallucinationPct = stats
     ? Math.round((stats.hallucination_rate ?? 0) * 100)
     : 0;
+
+  const reviewQueue = records.filter(
+    (r) => r.faithfulness !== null && r.faithfulness < 0.5 && !reviewedIds.has(r.id)
+  );
 
   return (
     <section className="mt-8 space-y-5">
@@ -288,16 +310,16 @@ export default function RagasDashboard() {
         />
       </div>
 
-      {/* タブ：指標詳細 / 評価ログ / Humanレビュー */}
+      {/* タブ */}
       <Tabs defaultValue="metrics">
         <TabsList className="h-8 text-xs">
           <TabsTrigger value="metrics" className="text-xs px-3">指標詳細</TabsTrigger>
           <TabsTrigger value="log" className="text-xs px-3">評価ログ</TabsTrigger>
           <TabsTrigger value="review" className="text-xs px-3">
             Human Review
-            {(stats?.hallucination_risk_count ?? 0) > 0 && (
+            {reviewQueue.length > 0 && (
               <span className="ml-1.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold bg-red-500 text-white rounded-full">
-                {stats?.hallucination_risk_count}
+                {reviewQueue.length}
               </span>
             )}
           </TabsTrigger>
@@ -330,7 +352,6 @@ export default function RagasDashboard() {
                 />
               </div>
 
-              {/* スコア解釈凡例 */}
               <div className="mt-4 flex gap-4 text-[10px] text-gray-400">
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
@@ -372,14 +393,11 @@ export default function RagasDashboard() {
                     </TableHeader>
                     <TableBody>
                       {records.map((r) => {
-                        const isRisk =
-                          r.faithfulness !== null && r.faithfulness < 0.5;
+                        const isRisk = r.faithfulness !== null && r.faithfulness < 0.5;
                         return (
                           <TableRow
                             key={r.id}
-                            className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${
-                              isRisk ? "bg-red-50/50" : ""
-                            }`}
+                            className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${isRisk ? "bg-red-50/50" : ""}`}
                           >
                             <TableCell className="text-[11px] text-gray-400 font-mono pl-4 whitespace-nowrap">
                               {new Date(r.created_at).toLocaleString("ja-JP", {
@@ -433,8 +451,7 @@ export default function RagasDashboard() {
         <TabsContent value="review" className="mt-3">
           <Card className="border-gray-200">
             <CardContent className="pt-4 pb-4">
-              {records.filter((r) => r.faithfulness !== null && r.faithfulness < 0.5)
-                .length === 0 ? (
+              {reviewQueue.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-sm text-emerald-600 font-medium">✓ レビュー待ちなし</p>
                   <p className="text-xs text-gray-400 mt-1">
@@ -446,42 +463,47 @@ export default function RagasDashboard() {
                   <p className="text-xs text-red-600 font-medium">
                     ⚠ 以下の回答はfaithfulness &lt; 0.5 のため人間によるレビューが必要です
                   </p>
-                  {records
-                    .filter((r) => r.faithfulness !== null && r.faithfulness < 0.5)
-                    .map((r) => (
-                      <div
-                        key={r.id}
-                        className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs font-semibold text-gray-800 flex-1">
-                            {r.question}
-                          </p>
-                          <span className="text-[10px] font-mono text-red-600 font-bold whitespace-nowrap">
-                            faith: {r.faithfulness?.toFixed(3)}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-gray-600 line-clamp-2">{r.answer}</p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] text-gray-400">
-                            {new Date(r.created_at).toLocaleString("ja-JP")}
-                            {r.notes && ` · ${r.notes}`}
-                          </span>
-                          <div className="flex gap-1.5">
-                            <button className="text-[10px] px-2 py-0.5 rounded border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors">
-                              承認
-                            </button>
-                            <button className="text-[10px] px-2 py-0.5 rounded border border-red-300 text-red-700 hover:bg-red-100 transition-colors">
-                              却下
-                            </button>
-                          </div>
+                  {reviewQueue.map((r) => (
+                    <div
+                      key={r.id}
+                      className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-semibold text-gray-800 flex-1">
+                          {r.question}
+                        </p>
+                        <span className="text-[10px] font-mono text-red-600 font-bold whitespace-nowrap">
+                          faith: {r.faithfulness?.toFixed(3)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-600 line-clamp-2">{r.answer}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(r.created_at).toLocaleString("ja-JP")}
+                          {r.notes && ` · ${r.notes}`}
+                        </span>
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => handleReview(r.id, "approve")}
+                            disabled={reviewingId === r.id}
+                            className="text-[10px] px-2 py-0.5 rounded border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                          >
+                            {reviewingId === r.id ? "処理中..." : "承認"}
+                          </button>
+                          <button
+                            onClick={() => handleReview(r.id, "reject")}
+                            disabled={reviewingId === r.id}
+                            className="text-[10px] px-2 py-0.5 rounded border border-red-300 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
+                          >
+                            {reviewingId === r.id ? "処理中..." : "却下"}
+                          </button>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
                 </div>
               )}
 
-              {/* J-SOX監査メモ */}
               <div className="mt-4 pt-3 border-t border-gray-100">
                 <p className="text-[10px] text-gray-400 leading-relaxed">
                   📋 このレビューキューは <code className="bg-gray-100 px-1 rounded">ragas_review_queue</code> テーブルと連動します。
